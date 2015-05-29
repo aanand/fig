@@ -5,10 +5,10 @@ from __future__ import division
 from .. import __version__
 import datetime
 from docker import version as docker_py_version
+from OpenSSL import SSL
 import os
 import platform
 import subprocess
-import ssl
 
 
 def yesno(prompt, default=None):
@@ -134,6 +134,6 @@ def get_version_info(scope):
         return versioninfo + '\n' \
             + "docker-py version: %s\n" % docker_py_version \
             + "%s version: %s\n" % (platform.python_implementation(), platform.python_version()) \
-            + "OpenSSL version: %s" % ssl.OPENSSL_VERSION
+            + "OpenSSL version: %s" % SSL.SSLeay_version(SSL.SSLEAY_VERSION)
     else:
         raise RuntimeError('passed unallowed value to `cli.utils.get_version_info`')

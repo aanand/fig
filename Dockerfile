@@ -3,10 +3,9 @@ FROM debian:wheezy
 RUN set -ex; \
     apt-get update -qq; \
     apt-get install -y \
-        gcc \
-        make \
-        zlib1g \
-        zlib1g-dev \
+        python \
+        python-dev \
+        libffi-dev \
         libssl-dev \
         git \
         apt-transport-https \
@@ -16,18 +15,6 @@ RUN set -ex; \
         iptables \
     ; \
     rm -rf /var/lib/apt/lists/*
-
-# Build Python 2.7.9 from source
-RUN set -ex; \
-    curl -LO https://www.python.org/ftp/python/2.7.9/Python-2.7.9.tgz; \
-    tar -xzf Python-2.7.9.tgz; \
-    cd Python-2.7.9; \
-    ./configure --enable-shared; \
-    make; \
-    make install; \
-    cd ..; \
-    rm -rf /Python-2.7.9; \
-    rm Python-2.7.9.tgz
 
 # Make libpython findable
 ENV LD_LIBRARY_PATH /usr/local/lib
