@@ -24,7 +24,7 @@ from .const import (
 from .container import Container
 from .legacy import check_for_legacy_containers
 from .progress_stream import stream_output, StreamOutputError
-from .utils import json_hash
+from .utils import json_hash, parallel
 
 log = logging.getLogger(__name__)
 
@@ -155,34 +155,44 @@ class Service(object):
                      'for this service are created on a single host, the port will clash.'
                      % self.name)
 
-        # Create enough containers
+        def create_and_start_job(number):
+            def create_and_start(number):
+                c = self.create_container(number=number, quiet=True)
+                self.start_container(c)
+                sys.stderr.write(".")
+            return lambda: create_and_start(number)
+
+        def stop_job(container):
+            return lambda: container.stop(timeout=1)
+
+        def start_job(container):
+            return lambda: self.start_container(container)
+
         containers = self.containers(stopped=True)
-        while len(containers) < desired_num:
-            containers.append(self.create_container())
+        if len(containers) < desired_num:
+            num_to_create = desired_num - len(containers)
+            next_number = self._next_container_number()
+            sys.stderr.write("Creating {} containers...".format(num_to_create))
+            parallel(create_and_start_job(number) for number in range(next_number, next_number + num_to_create))
+            sys.stderr.write(" done\n")
 
-        running_containers = []
-        stopped_containers = []
-        for c in containers:
-            if c.is_running:
-                running_containers.append(c)
-            else:
-                stopped_containers.append(c)
-        running_containers.sort(key=lambda c: c.number)
-        stopped_containers.sort(key=lambda c: c.number)
+        containers = sorted(self.containers(stopped=True), key=attrgetter('number'))
+        running_containers = list(reversed([c for c in containers if c.is_running]))
 
-        # Stop containers
-        while len(running_containers) > desired_num:
-            c = running_containers.pop()
-            log.info("Stopping %s..." % c.name)
-            c.stop(timeout=1)
-            stopped_containers.append(c)
+        if len(running_containers) > desired_num:
+            num_to_stop = len(running_containers) - desired_num
+            containers_to_stop = running_containers[:num_to_stop]
+            log.info("Stopping {}...".format(", ".join(c.name for c in containers_to_stop)))
+            parallel(stop_job(c) for c in containers_to_stop)
 
-        # Start containers
-        while len(running_containers) < desired_num:
-            c = stopped_containers.pop(0)
-            log.info("Starting %s..." % c.name)
-            self.start_container(c)
-            running_containers.append(c)
+        containers = sorted(self.containers(stopped=True), key=attrgetter('number'))
+        stopped_containers = [c for c in containers if not c.is_running]
+
+        if len(running_containers) < desired_num:
+            num_to_start = desired_num - len(running_containers)
+            containers_to_start = stopped_containers[:num_to_start]
+            log.info("Starting {}...".format(", ".join(c.name for c in containers_to_start)))
+            parallel(start_job(c) for c in containers_to_start)
 
         self.remove_stopped()
 
