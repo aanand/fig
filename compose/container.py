@@ -192,7 +192,7 @@ class Container(object):
 
 def get_container_name(container):
     if not container.get('Name') and not container.get('Names'):
-        return None
+        return ''
     # inspect
     if 'Name' in container:
         return container['Name']
