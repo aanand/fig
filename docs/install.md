@@ -23,11 +23,11 @@ install commands with `sudo` to install.
 
 To install Compose, do the following:
 
-1. Install Docker Docker version 1.7.1 or greater:
+1. Install Docker version 1.7.1 or greater:
 
-   - <a href="http://docs.docker.com/installation/mac/" target="_blank">Mac OS X installation</a>
-   - <a href="http://docs.docker.com/installation/ubuntulinux/" target="_blank">Ubuntu installation</a>
-   - <a href="http://docs.docker.com/installation/" target="_blank">other system installations</a>
+   - <a href="https://docs.docker.com/installation/mac/" target="_blank">Mac OS X installation</a>
+   - <a href="https://docs.docker.com/installation/ubuntulinux/" target="_blank">Ubuntu installation</a>
+   - <a href="https://docs.docker.com/installation/" target="_blank">other system installations</a>
   
      The Mac OS X installation using Docker Toolbox also installs Compose for you.
      So, if you are on Mac OS X, you are done installing. Others should continue
@@ -35,7 +35,7 @@ To install Compose, do the following:
    
 2. Install the Compose binary.
 
-        $ curl -L https://github.com/docker/compose/releases/download/1.3.3/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+        $ curl -L https://github.com/docker/compose/releases/download/1.4.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
    
      If you have problems installing with `curl`, you can use `pip` instead: `pip install -U docker-compose`
       
@@ -49,7 +49,7 @@ To install Compose, do the following:
 5. Test the installation.
 
         $ docker-compose --version
-        docker-compose version: 1.4.0rc3
+        docker-compose version: 1.4.0
 
 ## Upgrading
 
@@ -68,7 +68,7 @@ to preserve) you can migrate them with the following command:
 Alternatively, if you're not worried about keeping them, you can remove them &endash;
 Compose will just create new ones.
 
-    $ docker rm -f myapp_web_1 myapp_db_1 ...
+    $ docker rm -f -v myapp_web_1 myapp_db_1 ...
 
 
 ## Uninstallation
