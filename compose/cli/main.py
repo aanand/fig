@@ -6,6 +6,7 @@ import contextlib
 import functools
 import json
 import logging
+import subprocess
 import re
 import sys
 from inspect import getdoc
@@ -42,10 +43,6 @@ from .log_printer import build_log_presenters
 from .log_printer import LogPrinter
 from .utils import get_version_info
 from .utils import yesno
-
-
-if not IS_WINDOWS_PLATFORM:
-    from dockerpty.pty import PseudoTerminal, RunOperation, ExecOperation
 
 log = logging.getLogger(__name__)
 console_handler = logging.StreamHandler(sys.stderr)
@@ -334,45 +331,30 @@ class TopLevelCommand(object):
         """
         index = int(options.get('--index'))
         service = self.project.get_service(options['SERVICE'])
-        detach = options['-d']
 
-        if IS_WINDOWS_PLATFORM and not detach:
-            raise UserError(
-                "Interactive mode is not yet supported on Windows.\n"
-                "Please pass the -d flag when using `docker-compose exec`."
-            )
         try:
             container = service.get_container(number=index)
         except ValueError as e:
             raise UserError(str(e))
-        command = [options['COMMAND']] + options['ARGS']
-        tty = not options["-T"]
 
-        create_exec_options = {
-            "privileged": options["--privileged"],
-            "user": options["--user"],
-            "tty": tty,
-            "stdin": tty,
-        }
+        args = ["docker", "exec"]
 
-        exec_id = container.create_exec(command, **create_exec_options)
+        if not options["-T"]:
+            args.append("-it")
+        if options["--privileged"]:
+            args.append("--privileged")
+        if options["--user"]:
+            args += ["--user", options["--user"]]
 
-        if detach:
-            container.start_exec(exec_id, tty=tty)
-            return
+        args.append(container.id)
+        args.append(options["COMMAND"])
+        args += options["ARGS"]
 
         signals.set_signal_handler_to_shutdown()
         try:
-            operation = ExecOperation(
-                self.project.client,
-                exec_id,
-                interactive=tty,
-            )
-            pty = PseudoTerminal(self.project.client, operation)
-            pty.start()
+            exit_code = subprocess.call(args)
         except signals.ShutdownException:
             log.info("received shutdown exception: closing")
-        exit_code = self.project.client.exec_inspect(exec_id).get("ExitCode")
         sys.exit(exit_code)
 
     @classmethod
@@ -593,12 +575,6 @@ class TopLevelCommand(object):
         """
         service = self.project.get_service(options['SERVICE'])
         detach = options['-d']
-
-        if IS_WINDOWS_PLATFORM and not detach:
-            raise UserError(
-                "Interactive mode is not yet supported on Windows.\n"
-                "Please pass the -d flag when using `docker-compose run`."
-            )
 
         if options['--publish'] and options['--service-ports']:
             raise UserError(
@@ -884,16 +860,9 @@ def run_one_off_container(container_options, project, service, options):
     signals.set_signal_handler_to_shutdown()
     try:
         try:
-            operation = RunOperation(
-                project.client,
-                container.id,
-                interactive=not options['-T'],
-                logs=False,
-            )
-            pty = PseudoTerminal(project.client, operation)
-            sockets = pty.sockets()
+            process = subprocess.Popen(["docker", "attach", container.id])
             service.start_container(container)
-            pty.start(sockets)
+            process.wait()
             exit_code = container.wait()
         except signals.ShutdownException:
             project.client.stop(container.id)
